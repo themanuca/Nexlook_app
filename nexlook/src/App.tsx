@@ -15,21 +15,57 @@ const App: React.FC = () => {
   const [category, setCategory] = useState('camisa');
   const [image, setImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    debugger
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'nexlookStorage'); // configure este preset no Cloudinary
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/deoxincfe/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      const data = await response.json();
+      return data.secure_url;
+    } catch (error) {
+      console.error('Error:', error);
+      throw new Error('Falha ao fazer upload da imagem');
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('handleImageChange called');
     const file = e.target.files?.[0];
     if (file) {
+      // Preview local
       const reader = new FileReader();
       reader.onloadend = () => {
-        const result = reader.result as string;
-        setImage(result);
-        setPreviewImage(result);
+        setPreviewImage(reader.result as string);
       };
       reader.readAsDataURL(file);
+      
+      try {
+        setIsUploading(true);
+        const cloudinaryUrl = await uploadToCloudinary(file);
+        console.log('Uploaded to Cloudinary:', cloudinaryUrl);
+        setImage(cloudinaryUrl);
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Erro ao fazer upload da imagem');
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
+    debugger
     e.preventDefault();
     if (name && category && image) {
       const newItem: ClothingItem = {
@@ -114,8 +150,12 @@ const App: React.FC = () => {
             )}
           </div>
 
-          <button type="submit" className="button">
-            Adicionar peça
+          <button 
+            type="submit" 
+            className="button" 
+            disabled={isUploading}
+          >
+            {isUploading ? 'Enviando...' : 'Adicionar peça'}
           </button>
         </form>
       </div>
