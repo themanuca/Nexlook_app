@@ -13,6 +13,7 @@
     "@cloudinary/url-gen": "^1.22.0",
     "@firebase/storage": "^0.14.0",
     "cloudinary-react": "^1.8.1",
+    "dotenv": "^17.2.1",
     "firebase": "^12.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

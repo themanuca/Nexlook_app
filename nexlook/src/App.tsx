@@ -1,47 +1,30 @@
 import React, { useState } from 'react';
 import './styles/global.css';
-
-
-interface ClothingItem {
-  id: string;
-  name: string;
-  category: string;
-  image: string;
-}
+import { uploadToCloudinary, uploadToServer, validateImage } from './services/uploadService';
+import { useClothingStorage } from './hooks/useClothingStorage';
+import { ClothingItem, ClothingCategory } from './types';
+import { OutfitAnalyzer } from 'components/OutfitAnalyzer';
 
 const App: React.FC = () => {
-  const [items, setItems] = useState<ClothingItem[]>([]);
+  const { items, addItem } = useClothingStorage();
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('camisa');
+  const [category, setCategory] = useState<ClothingCategory>('camisa');
   const [image, setImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const uploadToCloudinary = async (file: File): Promise<string> => {
-    debugger
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'nexlookStorage'); // configure este preset no Cloudinary
-
-    try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/deoxincfe/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-      const data = await response.json();
-      return data.secure_url;
-    } catch (error) {
-      console.error('Error:', error);
-      throw new Error('Falha ao fazer upload da imagem');
-    }
-  };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('handleImageChange called');
+    debugger
     const file = e.target.files?.[0];
+    if(!file){
+      return;
+    }
+    if (!validateImage(file)) {
+        setError('Arquivo inválido. Use apenas imagens (jpg, png) até 5MB.');
+        return;
+    }    
     if (file) {
       // Preview local
       const reader = new FileReader();
@@ -52,12 +35,13 @@ const App: React.FC = () => {
       
       try {
         setIsUploading(true);
-        const cloudinaryUrl = await uploadToCloudinary(file);
+        debugger
+        const cloudinaryUrl = await uploadToServer(file);
         console.log('Uploaded to Cloudinary:', cloudinaryUrl);
-        setImage(cloudinaryUrl);
+        setImage(cloudinaryUrl.imageUrl);
       } catch (error) {
         console.error('Upload error:', error);
-        alert('Erro ao fazer upload da imagem');
+        setError('Erro ao fazer upload da imagem');
       } finally {
         setIsUploading(false);
       }
@@ -65,20 +49,26 @@ const App: React.FC = () => {
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    debugger
     e.preventDefault();
+    setError(null);
+    
     if (name && category && image) {
-      const newItem: ClothingItem = {
-        id: Math.random().toString(),
-        name,
-        category,
-        image,
-      };
-      setItems([...items, newItem]);
-      setName('');
-      setCategory('camisa');
-      setImage(null);
-      setPreviewImage(null);
+      try {
+        const newItem: ClothingItem = {
+          id: Math.random().toString(),
+          nome: name,
+          categoria: category,
+          imagem: image,
+        };
+        addItem(newItem);
+        setName('');
+        setCategory('camisa');
+        setImage(null);
+        setPreviewImage(null);
+      } catch (err) {
+        setError('Erro ao salvar item. Tente novamente.');
+        console.error('Error saving item:', err);
+      }
     }
   };
 
@@ -120,7 +110,7 @@ const App: React.FC = () => {
             <select
               className="select"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => setCategory(e.target.value as ClothingCategory)}
               required
             >
               <option value="camisa">Camisa</option>
@@ -151,7 +141,7 @@ const App: React.FC = () => {
           </div>
 
           <button 
-            type="submit" 
+            type="submit"
             className="button" 
             disabled={isUploading}
           >
@@ -171,17 +161,18 @@ const App: React.FC = () => {
             <div className="items-grid">
               {items.map((item) => (
                 <div key={item.id} className="item-card">
-                  <img src={item.image} alt={item.name} className="item-image" />
+                  <img src={item.imagem} alt={item.nome} className="item-image" />
                   <div className="item-info">
-                    <h3 className="item-name">{item.name}</h3>
-                    <p className="item-category">{item.category}</p>
+                    <h3 className="item-name">{item.nome}</h3>
+                    <p className="item-category">{item.categoria}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={handleRecommend} className="recommend-button">
+            <OutfitAnalyzer selectedItems={items}/>
+            {/* <button onClick={handleRecommend} className="recommend-button">
               Receber recomendação de look
-            </button>
+            </button> */}
           </>
         )}
       </div>

@@ -12,3 +12,9 @@ export interface Recommendation {
     items: ClothingItem[];
     context: string;
 }
+export interface UploadResponse {
+  imageUrl: string;
+  id: string;
+  success: boolean;
+  message?: string;
+}
